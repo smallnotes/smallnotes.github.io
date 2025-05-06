@@ -1,0 +1,87 @@
+name: Sync New Posts from S3
+
+on:
+  schedule:
+    - cron: '5 * * * *'  # 매 시 5분마다 실행
+  workflow_dispatch:     # 수동 실행도 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-northeast-2
+      AWS_BUCKET: smallnotes
+
+    steps:
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync new posts only
+        run: |
+          set -euxo pipefail
+
+          # 오늘 날짜 기준 경로
+          year=$(date +%Y)
+          month=$(date +%m)
+          prefix="posts/$year/$month"
+
+          # 1. 현재 레포에 있는 slug 목록
+          existing_slugs=$(ls _posts | sed 's/\.md$//')
+
+          # 2. S3에서 article.md 경로만 가져오기
+          s3_objects=$(aws s3api list-objects-v2 \
+            --bucket "$AWS_BUCKET" \
+            --prefix "$prefix/" \
+            --query 'Contents[?ends_with(Key, `article.md`)].Key' \
+            --output text)
+          echo $s3_objects
+
+          if [ -z "$s3_objects" ]; then
+            echo "✅ 오늘 올라온 글이 없습니다."
+            exit 0
+          fi
+
+          echo "$s3_objects" | while read -r path; do
+            slug=$(basename "$(dirname "$path")")
+            echo $slug
+
+            if ! echo "$existing_slugs" | grep -qx "$slug"; then
+              echo "📄 새 글 발견: $slug"
+
+              aws s3 cp "s3://$AWS_BUCKET/$path" "_posts/${slug}.md"
+
+              image_path="s3://$AWS_BUCKET/$(dirname "$path")/images"
+              if aws s3 ls "$image_path" > /dev/null 2>&1; then
+                aws s3 sync "$image_path" "assets/img/${slug}/" \
+                  --exact-timestamps \
+                  --exclude "*" --include "*.png"
+              fi
+            else
+              echo "✅ 이미 있는 글: $slug (건너뜀)"
+            fi
+          done
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+    
+      - name: Commit and push
+        run: |
+          set -euxo pipefail
+
+          git add _posts/ assets/img/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: auto sync new posts from S3"
+            git push
+          else
+            echo "✅ 변경 사항 없음 (커밋 생략)"
+          fi
