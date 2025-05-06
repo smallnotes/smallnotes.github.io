@@ -16,7 +16,7 @@ timezone:
 
 title: Snapper # the main title
 
-tagline: "일상의 순간을 스냅샷" # it will display as the subtitle
+tagline: "요약과 기록의 공간" # it will display as the subtitle
 
 description: >- # used by seo meta and the atom feed
   A minimal, responsive and feature-rich Jekyll theme for technical writing.
