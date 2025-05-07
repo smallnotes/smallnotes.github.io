@@ -42,16 +42,14 @@ jobs:
             --prefix "$prefix/" \
             --query 'Contents[?ends_with(Key, `article.md`)].Key' \
             --output text)
-          echo $s3_objects
 
           if [ -z "$s3_objects" ]; then
             echo "✅ 오늘 올라온 글이 없습니다."
             exit 0
           fi
 
-          echo "$s3_objects" | while read -r path; do
+          echo "$s3_objects" | tr '\t' '\n' | while read -r path; do
             slug=$(basename "$(dirname "$path")")
-            echo $slug
 
             if ! echo "$existing_slugs" | grep -qx "$slug"; then
               echo "📄 새 글 발견: $slug"
