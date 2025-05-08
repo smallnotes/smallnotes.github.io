@@ -6,7 +6,7 @@ on:
   workflow_dispatch:     # 수동 실행도 가능
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
