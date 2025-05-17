@@ -26,25 +26,26 @@ jobs:
 
       - name: Sync new posts only
         run: |
-          set -euxo pipefail
+          set -euo pipefail
 
           # 오늘 날짜 기준 경로
           year=$(date +%Y)
           month=$(date +%m)
-          prefix="posts/$year/$month"
+          s3_prefix="posts/$year/$month"
+          post_prefix="$year-$month"  
 
           # 1. 현재 레포에 있는 slug 목록
-          existing_slugs=$(ls _posts | sed 's/\.md$//')
+          existing_slugs=$(find _posts -type f -name "${ym_prefix}-*.md" -exec basename {} .md \;)
 
           # 2. S3에서 article.md 경로만 가져오기
           s3_objects=$(aws s3api list-objects-v2 \
             --bucket "$AWS_BUCKET" \
-            --prefix "$prefix/" \
+            --prefix "$s3_prefix/" \
             --query 'Contents[?ends_with(Key, `article.md`)].Key' \
             --output text)
 
           if [ -z "$s3_objects" ]; then
-            echo "✅ 오늘 올라온 글이 없습니다."
+            echo "📄 오늘 올라온 글이 없습니다."
             exit 0
           fi
 
@@ -52,7 +53,7 @@ jobs:
             slug=$(basename "$(dirname "$path")")
 
             if ! echo "$existing_slugs" | grep -qx "$slug"; then
-              echo "📄 새 글 발견: $slug"
+              echo "🔥 새 글 발견: $slug"
 
               aws s3 cp "s3://$AWS_BUCKET/$path" "_posts/${slug}.md"
 
@@ -63,7 +64,7 @@ jobs:
                   --exclude "*" --include "*.png"
               fi
             else
-              echo "✅ 이미 있는 글: $slug (건너뜀)"
+              echo "📄 이미 있는 글: $slug (건너뜀)"
             fi
           done
 
@@ -74,7 +75,7 @@ jobs:
     
       - name: Commit and push
         run: |
-          set -euxo pipefail
+          set -euo pipefail
 
           git add _posts/ assets/img/
           if ! git diff --cached --quiet; then
