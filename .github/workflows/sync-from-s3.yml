@@ -35,7 +35,7 @@ jobs:
           post_prefix="$year-$month"  
 
           # 1. 현재 레포에 있는 slug 목록
-          existing_slugs=$(find _posts -type f -name "${ym_prefix}-*.md" -exec basename {} .md \;)
+          existing_slugs=$(find _posts -type f -name "${post_prefix}-*.md" -exec basename {} .md \;)
 
           # 2. S3에서 article.md 경로만 가져오기
           s3_objects=$(aws s3api list-objects-v2 \
