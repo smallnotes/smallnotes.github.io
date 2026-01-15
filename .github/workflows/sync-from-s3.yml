@@ -1,7 +1,9 @@
 name: Sync New Posts from S3
 
 on:
-    workflow_dispatch:     # 수동 실행도 가능
+  schedule:
+    - cron: '5 11 * * *'  # KST 20:05 마다 실행
+  workflow_dispatch:     # 수동 실행도 가능
 
 jobs:
   sync:
